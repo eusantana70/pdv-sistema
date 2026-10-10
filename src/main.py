@@ -1,4 +1,4 @@
-"""Entry point do PDV. Roda sem dependências externas até a UI ser instalada."""
+"""Entry point do PDV. Garante DB e abre a UI PySide6 (M1/M2)."""
 
 from __future__ import annotations
 
@@ -6,7 +6,10 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+SRC = Path(__file__).resolve().parent
+for _p in (str(SRC), str(ROOT)):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 from database.connection import get_db_path  # noqa: E402
 from database.schema import init_db, table_counts  # noqa: E402
@@ -18,16 +21,15 @@ def main() -> int:
     print(f"PDV Sistema — banco pronto em: {db_path}")
     print(f"Tabelas: {counts}")
     try:
-        import PySide6  # noqa: F401
+        from PySide6.QtWidgets import QApplication
+        from ui.main_window import MainWindow
     except ImportError:
-        print(
-            "\nUI PySide6 ainda não instalada (de propósito: aguardando sua decisão de onde instalar).\n"
-            "Quando liberar, rode os comandos do README (opção A ou B) e depois: python src\\main.py"
-        )
-        return 0
-    # TODO: iniciar QApplication + janela principal (Módulos 1-7)
-    print("PySide6 detectado. UI principal ainda será implementada no próximo passo.")
-    return 0
+        print("\nPySide6 não instalado. Ative o venv e rode: pip install -r requirements.txt")
+        return 1
+    app = QApplication(sys.argv)
+    win = MainWindow()
+    win.show()
+    return app.exec()
 
 
 if __name__ == "__main__":
