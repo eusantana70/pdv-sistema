@@ -1,48 +1,88 @@
-# PDV Sistema
+# PDV Sistema — Sorvetes (Franquia MG)
 
-Sistema de Ponto de Venda (PDV) — gestão de vendas, produtos, estoque, clientes e relatórios.
+Desktop autônomo Windows: **Python + PySide6 + SQLite** (arquivo único `data/pdv.db`).
+Sem servidor externo. Instalador final: **PyInstaller → .exe único → Inno Setup → Setup.exe**.
 
-## Objetivo
+## Stack decidida
 
-Fornecer um PDV simples, rápido e confiável para operações de varejo presenciais.
+| Camada | Escolha | Por quê |
+|---|---|---|
+| UI | PySide6 (Qt6) | Moderna, responsiva, `pip install` único, empacota bem no PyInstaller |
+| DB | SQLite (stdlib `sqlite3`) | Arquivo único local, zero instalação no cliente |
+| Build | PyInstaller `--onefile --windowed` | Embute Python + PySide6 + libs no .exe |
+| Instalador | Inno Setup 6 | Gera `PDV-Sorvetes-Setup.exe` com atalho |
+| Fiscal/HTTP | `requests` (background thread) | POST assíncrono p/ Nuvem Fiscal / Focus NFe |
+| Impressão | `pywin32` + `python-escpos` | Térmica via `win32print`/ESC-POS + QR |
 
-## Funcionalidades planejadas
-
-- [ ] Cadastro de produtos e categorias
-- [ ] Controle de estoque
-- [ ] Abertura/fechamento de caixa
-- [ ] Registro de vendas (cartão, dinheiro, Pix)
-- [ ] Emissão de cupom/recibo
-- [ ] Cadastro de clientes e vendedores
-- [ ] Relatórios de vendas e faturamento
-- [ ] Descontos, promoções e formas de pagamento
-
-## Como começar
-
-```bash
-# clonar o repositório
-git clone https://github.com/SEU_USUARIO/pdv-sistema.git
-cd pdv-sistema
-```
-
-> Projeto em fase inicial. Stack e instruções de execução serão definidas aqui.
-
-## Estrutura (prevista)
+## Estrutura
 
 ```
-pdv-sistema/
-├── docs/
-├── src/
-├── tests/
-└── README.md
+D:\pdv\
+├── src\
+│   ├── main.py                  # entry point (cria DB se não existir)
+│   ├── database\connection.py   # PRAGMA FK+WAL, data\pdv.db
+│   ├── database\schema.sql      # 8 tabelas (fonte oficial do schema)
+│   ├── database\schema.py       # init_db()
+│   ├── services\codigo_interno.py  # 4 dígitos únicos
+│   ├── services\pagamentos.py      # split + troco
+│   ├── services\fiscal_payload.py  # JSON NFC-e
+│   └── ui\                      # telas (próximo passo)
+├── scripts\
+│   ├── init_db.py      # python scripts\init_db.py (stdlib, já rodado)
+│   ├── build_exe.ps1   # gera dist\PDV-Sorvetes.exe
+│   └── installer.iss   # receita do Setup.exe (Inno Setup)
+├── data\pdv.db         # criado local, NÃO vai pro Git
+├── tests\test_basico.py
+└── requirements.txt
 ```
 
-## Contribuição
+Banco validado: 8 tabelas criadas, `configuracoes(id=1)` seed OK.
 
-1. Crie uma branch: `git checkout -b feat/minha-feature`
-2. Commit: `git commit -m "feat: minha feature"`
-3. Push e abra um Pull Request
+## Ambiente — ESCOLHA ONDE INSTALAR (aguardando sua decisão)
 
-## Licença
+Nada de terceiros foi instalado ainda. Só usei Python 3.14 + SQLite da sua máquina.
 
-A definir.
+**Opção A — venv na pasta do projeto (recomendado p/ dev):**
+```powershell
+cd D:\pdv
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python scripts\init_db.py
+python -m unittest discover -s tests -v
+python src\main.py
+```
+Baixa ~350 MB (Qt6) para `D:\pdv\.venv\` (isolado, não suja o PC).
+
+**Opção B — global no PC:**
+```powershell
+cd D:\pdv
+pip install -r requirements.txt
+python scripts\init_db.py
+python src\main.py
+```
+Mesmos ~350 MB em `C:\Python314\Lib\site-packages\` (vale p/ todos os projetos).
+
+## Build .exe (só após aprovar UI)
+
+```powershell
+# 1. com venv ativo:
+powershell -ExecutionPolicy Bypass -File scripts\build_exe.ps1
+# saída: dist\PDV-Sorvetes.exe (~60-90 MB, Python+Qt embutidos, sem pedir Python no cliente)
+
+# 2. (opcional) abrir scripts\installer.iss no Inno Setup > Compile
+# saída: installer\PDV-Sorvetes-Setup.exe
+```
+
+Cliente final não instala Python, Node ou SQL — só roda o Setup.exe.
+
+## Módulos (status)
+
+- [x] Base: schema 8 tabelas + `data/pdv.db` + testes split/código interno
+- [ ] M1 Config + Perfis Fiscais
+- [ ] M2 Estoque grid rápido
+- [ ] M3 Caixa (abrir/fechar/sangria/suprimento)
+- [ ] M4 Frente de caixa + autocomplete
+- [ ] M5 Modal pagamento + split + troco
+- [ ] M6 Fiscal async + impressão térmica
+- [ ] M7 Histórico + relatórios dia
