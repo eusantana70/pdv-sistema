@@ -405,3 +405,74 @@ def atualizar_nfe(conn: sqlite3.Connection, venda_id: int, status: str,
         (status, link or "", xml or "", venda_id),
     )
     conn.commit()
+
+
+# ---------- Histórico e relatórios (M7) ----------
+
+def listar_vendas(conn: sqlite3.Connection, dia: str = "", status: str = "",
+                  limite: int = 200) -> list:
+    """Lista vendas. dia='YYYY-MM-DD' filtra por data; status filtra concluída/cancelada."""
+    sql = "SELECT * FROM vendas WHERE 1=1"
+    params: list = []
+    if dia:
+        sql += " AND substr(data_hora, 1, 10) = ?"
+        params.append(dia)
+    if status in ("concluída", "cancelada"):
+        sql += " AND status = ?"
+        params.append(status)
+    sql += " ORDER BY id DESC LIMIT ?"
+    params.append(limite)
+    cur = conn.execute(sql, params)
+    return [dict(r) for r in cur.fetchall()]
+
+
+def cancelar_venda(conn: sqlite3.Connection, venda_id: int) -> None:
+    """Cancela venda: status=cancelada, estorna estoque, nfe_status=cancelado.
+
+    O comando de cancelamento para a API é enviado pelo worker fiscal (M6);
+    aqui só marcamos — a venda continua no histórico.
+    """
+    venda = conn.execute("SELECT * FROM vendas WHERE id=?", (venda_id,)).fetchone()
+    if not venda:
+        raise ValueError("Venda não encontrada.")
+    if venda["status"] == "cancelada":
+        raise ValueError("Venda já cancelada.")
+    try:
+        itens = conn.execute(
+            "SELECT * FROM vendas_itens WHERE id_venda=?", (venda_id,)).fetchall()
+        for it in itens:
+            if it["id_produto"] is not None:
+                conn.execute(
+                    "UPDATE produtos SET quantidade_estoque = quantidade_estoque + ?"
+                    " WHERE id=?",
+                    (it["quantidade"], it["id_produto"]),
+                )
+        conn.execute("UPDATE vendas SET status='cancelada' WHERE id=?", (venda_id,))
+        conn.execute(
+            "UPDATE vendas SET nfe_status='cancelado' WHERE id=? AND nfe_status='autorizado'",
+            (venda_id,),
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+
+
+def totais_por_pagamento(conn: sqlite3.Connection, dia: str) -> dict:
+    """Totais do dia por método (só concluídas). Retorna {metodo: total} + _geral."""
+    cur = conn.execute(
+        """SELECT p.metodo AS metodo, COALESCE(SUM(p.valor),0) AS total
+           FROM vendas_pagamentos p JOIN vendas v ON v.id = p.id_venda
+           WHERE v.status='concluída' AND substr(v.data_hora,1,10)=?
+           GROUP BY p.metodo""",
+        (dia,))
+    out = {"dinheiro": 0.0, "credito": 0.0, "debito": 0.0, "pix": 0.0}
+    for r in cur.fetchall():
+        out[r["metodo"]] = round(float(r["total"]), 2)
+    out["_geral"] = round(sum(v for k, v in out.items() if not k.startswith("_")), 2)
+    cur2 = conn.execute(
+        """SELECT COUNT(*) AS n FROM vendas
+           WHERE status='concluída' AND substr(data_hora,1,10)=?""",
+        (dia,))
+    out["_vendas"] = cur2.fetchone()["n"]
+    return out

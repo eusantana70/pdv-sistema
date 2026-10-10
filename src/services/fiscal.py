@@ -61,6 +61,28 @@ def montar_payload_da_venda(db_path, venda_id: int) -> tuple:
     return payload, cfg.get("api_nfce_token", ""), cfg.get("api_nfce_url", "")
 
 
+def tentar_cancelar(venda_id: int, token: str, url: str,
+                    post: Callable | None = None) -> tuple:
+    """Envia comando de cancelamento à API (best-effort). Retorna (ok, msg)."""
+    import requests
+    if not url:
+        return (True, "Sem API configurada; cancelamento só local.")
+    fn = post or requests.post
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    try:
+        resp = fn(f"{url.rstrip('/')}/cancelar", json={"venda_id": venda_id},
+                  headers=headers, timeout=20)
+        if 200 <= getattr(resp, "status_code", 0) < 300:
+            return (True, "Cancelamento enviado à API.")
+        try:
+            detalhe = resp.json()
+        except Exception:
+            detalhe = ""
+        return (False, f"API recusou cancelamento: {detalhe}")
+    except Exception as e:
+        return (False, f"API inalcançável ({e}); vale o cancelamento local.")
+
+
 try:
     from PySide6.QtCore import QThread, Signal
 

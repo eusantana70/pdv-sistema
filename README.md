@@ -79,10 +79,12 @@ Cliente final não instala Python, Node ou SQL — só roda o Setup.exe.
 ## Módulos (status)
 
 - [x] Base: schema 8 tabelas + `data/pdv.db` + testes split/código interno
-- [ ] M1 Config + Perfis Fiscais
-- [ ] M2 Estoque grid rápido
-- [ ] M3 Caixa (abrir/fechar/sangria/suprimento)
-- [ ] M4 Frente de caixa + autocomplete
-- [ ] M5 Modal pagamento + split + troco
-- [ ] M6 Fiscal async + impressão térmica
-- [ ] M7 Histórico + relatórios dia
+- [x] M1 Config (token/URL/impressora) + Perfis Fiscais (NCM/CFOP/CSOSN)
+- [x] M2 Estoque grid rápido (Enter adiciona, código 4 dígitos, desconto %, busca)
+- [x] M3 Caixa (abrir/fechar/sangria/suprimento + saldo previsto)
+- [x] M4 Frente de caixa (autocomplete nome/código, carrinho, gate caixa aberto)
+- [x] M5 Modal pagamento (split N formas, crédito 1–12x, troco só dinheiro)
+- [x] M6 Fiscal async (POST background, link/XML) + impressão térmica + pergunta cupom
+- [x] M7 Histórico (cancelar c/ estorno + comando API, reimprimir, totais do dia)
+
+Testes: `.\.venv\Scripts\python.exe -m unittest discover -s tests -v` (28 testes).

@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QMainWindow, QTabWidget
 
 from .pdv_widget import PdvWidget
 from .caixa_widget import CaixaWidget
+from .historico_widget import HistoricoWidget
 from .produtos_widget import ProdutosWidget
 from .perfis_widget import PerfisWidget
 from .config_widget import ConfigWidget
@@ -36,6 +37,7 @@ class MainWindow(QMainWindow):
         tabs = QTabWidget()
         tabs.addTab(PdvWidget(), "Frente de Caixa")
         tabs.addTab(CaixaWidget(), "Caixa")
+        tabs.addTab(HistoricoWidget(), "Histórico / Relatórios")
         tabs.addTab(ProdutosWidget(), "Estoque / Produtos")
         tabs.addTab(PerfisWidget(), "Perfis Fiscais")
         tabs.addTab(ConfigWidget(), "Configurações")
