@@ -53,3 +53,11 @@ yarn-error.log*
 # Env / segredos
 .env*
 !.env.example
+
+# PDV: banco local e artefatos de build (não versionar)
+data/*.db
+data/*.db-wal
+data/*.db-shm
+dist/
+installer/*.exe
+*.spec

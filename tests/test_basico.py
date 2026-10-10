@@ -11,10 +11,14 @@ class TestCodigoInterno(unittest.TestCase):
     def test_gera_4_digitos_unicos(self):
         conn = sqlite3.connect(":memory:")
         conn.execute("CREATE TABLE produtos (codigo_interno TEXT UNIQUE)")
-        vistos = {gerar_codigo_interno(conn) for _ in range(50)}
+        vistos = set()
+        for _ in range(50):
+            codigo = gerar_codigo_interno(conn)
+            self.assertNotIn(codigo, vistos)
+            self.assertRegex(codigo, r"^\d{4}$")
+            conn.execute("INSERT INTO produtos (codigo_interno) VALUES (?)", (codigo,))
+            vistos.add(codigo)
         self.assertEqual(len(vistos), 50)
-        for c in vistos:
-            self.assertRegex(c, r"^\d{4}$")
 
 
 class TestSplit(unittest.TestCase):
