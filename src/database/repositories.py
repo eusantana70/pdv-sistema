@@ -373,3 +373,35 @@ def criar_venda(conn: sqlite3.Connection, id_movimento: int | None,
         conn.rollback()
         raise
     return dict(conn.execute("SELECT * FROM vendas WHERE id=?", (venda_id,)).fetchone())
+
+
+# ---------- Vendas: leitura fiscal / impressão (M6) ----------
+
+def obter_venda(conn: sqlite3.Connection, venda_id: int) -> dict | None:
+    cur = conn.execute("SELECT * FROM vendas WHERE id=?", (venda_id,))
+    row = cur.fetchone()
+    return dict(row) if row else None
+
+
+def listar_itens_venda(conn: sqlite3.Connection, venda_id: int) -> list:
+    cur = conn.execute(
+        """SELECT i.*, p.nome, p.codigo_interno, p.id_perfil_fiscal, p.unidade_medida
+           FROM vendas_itens i LEFT JOIN produtos p ON p.id = i.id_produto
+           WHERE i.id_venda=? ORDER BY i.id""",
+        (venda_id,))
+    return [dict(r) for r in cur.fetchall()]
+
+
+def listar_pagamentos_venda(conn: sqlite3.Connection, venda_id: int) -> list:
+    cur = conn.execute(
+        "SELECT * FROM vendas_pagamentos WHERE id_venda=? ORDER BY id", (venda_id,))
+    return [dict(r) for r in cur.fetchall()]
+
+
+def atualizar_nfe(conn: sqlite3.Connection, venda_id: int, status: str,
+                  link: str = "", xml: str = "") -> None:
+    conn.execute(
+        "UPDATE vendas SET nfe_status=?, nfe_link_cupom=?, nfe_xml=? WHERE id=?",
+        (status, link or "", xml or "", venda_id),
+    )
+    conn.commit()

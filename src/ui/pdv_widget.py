@@ -1,20 +1,21 @@
-"""Frente de Caixa / PDV (M4): busca, carrinho, total. Exige caixa aberto.
+"""Frente de Caixa / PDV (M4+M5): busca, carrinho, total e split de pagamento.
 
-Finalização aqui é simples (1 pagamento do total); o split detalhado chega no M5.
+Exige caixa aberto. Finalizar abre o modal de pagamento (M5).
 """
 
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QComboBox, QDoubleSpinBox, QHBoxLayout, QLabel, QLineEdit, QListWidget,
-    QMessageBox, QPushButton, QSpinBox, QTableWidget, QTableWidgetItem,
+    QDoubleSpinBox, QHBoxLayout, QLabel, QLineEdit, QListWidget,
+    QMessageBox, QPushButton, QTableWidget, QTableWidgetItem,
     QVBoxLayout, QWidget,
 )
 
 from database.connection import connect
 from database import repositories as repo
 from services.carrinho import Carrinho
+from ui.pagamento_dialog import PagamentoDialog
 
 
 class PdvWidget(QWidget):
@@ -70,23 +71,16 @@ class PdvWidget(QWidget):
         rodape.addWidget(self.lbl_total, 1)
 
         col = QVBoxLayout()
-        self.cb_pagto = QComboBox()
-        self.cb_pagto.addItems(["dinheiro", "pix", "debito", "credito"])
-        self.sp_parc = QSpinBox(minimum=1, maximum=12, value=1, prefix="Parc ")
-        self.sp_parc.setVisible(False)
-        self.cb_pagto.currentTextChanged.connect(
-            lambda t: self.sp_parc.setVisible(t == "credito"))
         self.btn_rm = QPushButton("Remover item")
         self.btn_rm.clicked.connect(self._remover)
         self.btn_limpar = QPushButton("Limpar")
         self.btn_limpar.clicked.connect(self._limpar)
-        self.btn_fim = QPushButton("FINALIZAR VENDA")
+        self.btn_fim = QPushButton("FINALIZAR (F5)")
         self.btn_fim.setMinimumHeight(56)
         self.btn_fim.setStyleSheet("font-size: 18px;")
+        self.btn_fim.setShortcut("F5")
         self.btn_fim.clicked.connect(self.finalizar)
-        col.addWidget(QLabel("Pagamento:"))
-        col.addWidget(self.cb_pagto)
-        col.addWidget(self.sp_parc)
+        col.addWidget(QLabel("Split e troco no modal:"))
         col.addWidget(self.btn_rm)
         col.addWidget(self.btn_limpar)
         col.addWidget(self.btn_fim)
@@ -156,13 +150,19 @@ class PdvWidget(QWidget):
         conn = connect()
         try:
             mov = repo.obter_caixa_aberto(conn)
-            if not mov:
-                QMessageBox.warning(self, "PDV", "Caixa fechado. Abra o caixa antes de vender.")
-                return
-            metodo = self.cb_pagto.currentText()
-            pagto = {"metodo": metodo, "valor": self.cart.total(),
-                     "parcelas": self.sp_parc.value() if metodo == "credito" else 1}
-            venda = repo.criar_venda(conn, mov["id"], self.cart.para_venda(), [pagto])
+        finally:
+            conn.close()
+        if not mov:
+            QMessageBox.warning(self, "PDV", "Caixa fechado. Abra o caixa antes de vender.")
+            return
+        dlg = PagamentoDialog(self.cart.total(), self)
+        if dlg.exec() != PagamentoDialog.Accepted:
+            return
+        pagamentos = dlg.pagamentos()
+        troco = dlg.troco()
+        conn = connect()
+        try:
+            venda = repo.criar_venda(conn, mov["id"], self.cart.para_venda(), pagamentos)
         except ValueError as e:
             QMessageBox.warning(self, "PDV", str(e))
             conn.close()
@@ -172,12 +172,56 @@ class PdvWidget(QWidget):
             conn.close()
             return
         conn.close()
+        msg_troco = f"\nTroco: R$ {troco:.2f}" if troco > 0 else ""
         QMessageBox.information(
             self, "PDV",
-            f'Venda #{venda["id"]} concluída: R$ {float(venda["total"]):.2f} ({metodo}).\n'
-            "Estoque deduzido. (Split de pagamentos chega no M5.)")
+            f'Venda #{venda["id"]} concluída: R$ {float(venda["total"]):.2f} '
+            f'({len(pagamentos)} pagamento(s)).{msg_troco}\nEstoque deduzido.')
+        try:
+            self._pos_venda(venda)
+        except AttributeError:
+            pass
         self._limpar()
         self._sugerir("")
+
+    def _pos_venda(self, venda: dict):
+        """M6: dispara emissão fiscal async; ao concluir pergunta impressão."""
+        try:
+            from database.connection import get_db_path
+            from services.fiscal import FiscalThread
+        except ImportError:
+            return
+        if FiscalThread is None:
+            return
+        self._fiscal = FiscalThread(get_db_path(), venda["id"], self)
+        self._fiscal.ok.connect(self._fiscal_ok)
+        self._fiscal.falha.connect(self._fiscal_falha)
+        self._fiscal.start()
+
+    def _fiscal_ok(self, venda_id: int):
+        self._perguntar_impressao(
+            venda_id, "NFC-e autorizada! Deseja imprimir o cupom?")
+
+    def _fiscal_falha(self, venda_id: int, status: str):
+        # venda continua válida; fiscal fica pendente/erro no banco (M6)
+        self._perguntar_impressao(
+            venda_id,
+            f"Venda salva (fiscal: {status}). Deseja imprimir o cupom?")
+
+    def _perguntar_impressao(self, venda_id: int, texto: str):
+        if QMessageBox.question(self, "Cupom", texto) != QMessageBox.Yes:
+            return
+        try:
+            from database.connection import get_db_path
+            from services.impressao import imprimir_cupom_venda
+            ok, msg = imprimir_cupom_venda(get_db_path(), venda_id)
+        except Exception as e:
+            QMessageBox.critical(self, "Impressão", f"Erro: {e}")
+            return
+        if ok:
+            QMessageBox.information(self, "Impressão", msg)
+        else:
+            QMessageBox.warning(self, "Impressão", msg)
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -200,5 +244,5 @@ class PdvWidget(QWidget):
 
     def _set_enabled(self, on: bool):
         for w in (self.ed_busca, self.sp_qtd, self.btn_add, self.lst, self.tb,
-                  self.cb_pagto, self.sp_parc, self.btn_rm, self.btn_limpar, self.btn_fim):
+                  self.btn_rm, self.btn_limpar, self.btn_fim):
             w.setEnabled(on)
