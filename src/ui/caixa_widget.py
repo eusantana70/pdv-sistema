@@ -31,13 +31,18 @@ class CaixaWidget(QWidget):
         lay.addWidget(self.lbl_status)
 
         grid = QGridLayout()
+        grid.setSpacing(12)
         self.btn_abrir = QPushButton("ABRIR CAIXA")
         self.btn_fechar = QPushButton("FECHAR CAIXA")
         self.btn_sangria = QPushButton("SANGRIA")
         self.btn_suprimento = QPushButton("SUPRIMENTO")
         for b in (self.btn_abrir, self.btn_fechar, self.btn_sangria, self.btn_suprimento):
-            b.setMinimumHeight(64)
-            b.setStyleSheet("font-size: 18px;")
+            b.setMinimumHeight(76)
+            b.setStyleSheet("font-size: 20px;")
+        self.btn_abrir.setStyleSheet("font-size: 20px; background: #2f9e44;")
+        self.btn_fechar.setStyleSheet("font-size: 20px; background: #e8590c;")
+        self.btn_sangria.setStyleSheet("font-size: 20px; background: #e03131;")
+        self.btn_suprimento.setStyleSheet("font-size: 20px; background: #1971c2;")
         self.btn_abrir.clicked.connect(self.abrir)
         self.btn_fechar.clicked.connect(self.fechar)
         self.btn_sangria.clicked.connect(lambda: self._operacao("sangria"))
@@ -53,7 +58,9 @@ class CaixaWidget(QWidget):
         self.tb_ops.setHorizontalHeaderLabels(["ID", "Tipo", "Valor R$", "Data/Hora", "Obs"])
         self.tb_ops.setEditTriggers(QTableWidget.NoEditTriggers)
         self.tb_ops.setSelectionBehavior(QTableWidget.SelectRows)
+        self.tb_ops.setAlternatingRowColors(True)
         self.tb_ops.verticalHeader().setVisible(False)
+        self.tb_ops.verticalHeader().setDefaultSectionSize(32)
         lay.addWidget(self.tb_ops)
 
         lay.addWidget(QLabel("Histórico de movimentos:"))
@@ -62,7 +69,9 @@ class CaixaWidget(QWidget):
             ["ID", "Abertura", "Fechamento", "Inicial R$", "Final R$", "Status"])
         self.tb_movs.setEditTriggers(QTableWidget.NoEditTriggers)
         self.tb_movs.setSelectionBehavior(QTableWidget.SelectRows)
+        self.tb_movs.setAlternatingRowColors(True)
         self.tb_movs.verticalHeader().setVisible(False)
+        self.tb_movs.verticalHeader().setDefaultSectionSize(32)
         lay.addWidget(self.tb_movs)
 
     # ----- ações -----

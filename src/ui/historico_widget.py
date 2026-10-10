@@ -43,7 +43,8 @@ class HistoricoWidget(QWidget):
 
         self.lbl_rel = QLabel("")
         self.lbl_rel.setStyleSheet(
-            "font-weight: bold; padding: 10px; background: #313244; border-radius: 8px;")
+            "font-weight: bold; padding: 12px; background: #0e2a1a; color: #7CFC9a; "
+            "border-radius: 10px; font-size: 16px;")
         self.lbl_rel.setAlignment(Qt.AlignCenter)
         lay.addWidget(self.lbl_rel)
 
@@ -52,7 +53,9 @@ class HistoricoWidget(QWidget):
         self.tb.setHorizontalHeaderLabels(self.COLS)
         self.tb.setEditTriggers(QTableWidget.NoEditTriggers)
         self.tb.setSelectionBehavior(QTableWidget.SelectRows)
+        self.tb.setAlternatingRowColors(True)
         self.tb.verticalHeader().setVisible(False)
+        self.tb.verticalHeader().setDefaultSectionSize(32)
         self.tb.horizontalHeader().setStretchLastSection(True)
         self.tb.itemSelectionChanged.connect(self._detalhar)
         lay.addWidget(self.tb, 2)

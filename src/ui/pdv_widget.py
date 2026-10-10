@@ -34,14 +34,18 @@ class PdvWidget(QWidget):
         lay.addWidget(self.lbl_caixa)
 
         busca = QHBoxLayout()
-        self.ed_busca = QLineEdit(placeholderText="Buscar por nome ou código 4 dígitos...")
+        self.ed_busca = QLineEdit(placeholderText="Buscar por nome ou código 4 dígitos...  (F2 foca aqui)")
         self.ed_busca.textChanged.connect(self._sugerir)
         self.ed_busca.returnPressed.connect(self._enter_busca)
         self.sp_qtd = QDoubleSpinBox(minimum=0.001, maximum=9999, decimals=3, value=1)
         self.sp_qtd.setPrefix("Qtd ")
-        self.sp_qtd.setMinimumWidth(110)
+        self.sp_qtd.setMinimumWidth(130)
+        self.sp_qtd.setMinimumHeight(48)
+        self.ed_busca.setMinimumHeight(48)
         self.btn_add = QPushButton("Adicionar (Enter)")
         self.btn_add.setDefault(True)
+        self.btn_add.setMinimumHeight(48)
+        self.btn_add.setMinimumWidth(200)
         self.btn_add.clicked.connect(self._adicionar_selecionado)
         busca.addWidget(self.ed_busca, 1)
         busca.addWidget(self.sp_qtd)
@@ -49,7 +53,8 @@ class PdvWidget(QWidget):
         lay.addLayout(busca)
 
         self.lst = QListWidget()
-        self.lst.setMaximumHeight(130)
+        self.lst.setMaximumHeight(150)
+        self.lst.setAlternatingRowColors(True)
         self.lst.itemActivated.connect(lambda _i: self._adicionar_selecionado())
         self.lst.itemClicked.connect(lambda _i: self._adicionar_selecionado())
         lay.addWidget(self.lst)
@@ -59,25 +64,41 @@ class PdvWidget(QWidget):
         self.tb.setHorizontalHeaderLabels(["Código", "Nome", "Qtd", "Unit R$", "Subtotal R$"])
         self.tb.setEditTriggers(QTableWidget.NoEditTriggers)
         self.tb.setSelectionBehavior(QTableWidget.SelectRows)
+        self.tb.setAlternatingRowColors(True)
         self.tb.verticalHeader().setVisible(False)
-        self.tb.horizontalHeader().setStretchLastSection(True)
+        self.tb.verticalHeader().setDefaultSectionSize(34)
+        hdr = self.tb.horizontalHeader()
+        hdr.setStretchLastSection(False)
+        from PySide6.QtWidgets import QHeaderView
+        hdr.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        hdr.setSectionResizeMode(1, QHeaderView.Stretch)
+        hdr.setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        hdr.setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        hdr.setSectionResizeMode(4, QHeaderView.ResizeToContents)
         lay.addWidget(self.tb, 1)
 
         rodape = QHBoxLayout()
+        rodape.setSpacing(12)
         self.lbl_total = QLabel("TOTAL  R$ 0,00")
+        self.lbl_total.setAlignment(Qt.AlignCenter)
         self.lbl_total.setStyleSheet(
-            "font-size: 28px; font-weight: bold; background: #11111b; color: #a6e3a1; "
-            "padding: 12px; border-radius: 10px;")
+            "font-size: 40px; font-weight: 900; background: #0e2a1a; color: #7CFC9a; "
+            "padding: 16px; border-radius: 14px; border: 2px solid #1f5c38;")
         rodape.addWidget(self.lbl_total, 1)
 
         col = QVBoxLayout()
+        col.setSpacing(8)
         self.btn_rm = QPushButton("Remover item")
+        self.btn_rm.setMinimumHeight(44)
         self.btn_rm.clicked.connect(self._remover)
         self.btn_limpar = QPushButton("Limpar")
+        self.btn_limpar.setMinimumHeight(44)
         self.btn_limpar.clicked.connect(self._limpar)
         self.btn_fim = QPushButton("FINALIZAR (F5)")
-        self.btn_fim.setMinimumHeight(56)
-        self.btn_fim.setStyleSheet("font-size: 18px;")
+        self.btn_fim.setMinimumHeight(72)
+        self.btn_fim.setMinimumWidth(240)
+        self.btn_fim.setStyleSheet(
+            "font-size: 20px; background: #f5a623; color: #1a1305; border-radius: 12px;")
         self.btn_fim.setShortcut("F5")
         self.btn_fim.clicked.connect(self.finalizar)
         col.addWidget(QLabel("Split e troco no modal:"))
@@ -86,6 +107,13 @@ class PdvWidget(QWidget):
         col.addWidget(self.btn_fim)
         rodape.addLayout(col)
         lay.addLayout(rodape)
+
+        try:
+            from PySide6.QtGui import QShortcut, QKeySequence
+            QShortcut(QKeySequence("F2"), self, activated=lambda: (
+                self.ed_busca.setFocus(), self.ed_busca.selectAll()))
+        except Exception:
+            pass
 
     # ----- busca / carrinho -----
     def _sugerir(self, texto):

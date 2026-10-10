@@ -27,8 +27,13 @@ def main() -> int:
         print("\nPySide6 não instalado. Ative o venv e rode: pip install -r requirements.txt")
         return 1
     app = QApplication(sys.argv)
+    try:
+        from PySide6.QtGui import QFont
+        app.setFont(QFont("Segoe UI", 10))
+    except Exception:
+        pass
     win = MainWindow()
-    win.show()
+    win.showMaximized()  # visual comercial em tela cheia
     return app.exec()
 
 
