@@ -83,6 +83,28 @@ class TestVendas(unittest.TestCase):
         prod = repo.obter_produto(self.conn, p["id"])
         self.assertAlmostEqual(float(prod["quantidade_estoque"]), 7.0)
 
+    def test_venda_sem_valor_unitario_usa_preco_cadastrado(self):
+        """A tela manda o item sem valor_unitario (a chave chega como None,
+        nao ausente). Sem tratar esse None, toda venda quebrava com 500."""
+        m = repo.abrir_caixa(self.conn, 0)
+        p = _seed_prod(self.conn, preco=7.5, estoque=10)
+        venda = repo.criar_venda(
+            self.conn, m["id"],
+            [{"id_produto": p["id"], "quantidade": 2, "valor_unitario": None}],
+            [{"metodo": "pix", "valor": 15.0}])
+        self.assertAlmostEqual(venda["total"], 15.0)
+        itens = repo.listar_itens_venda(self.conn, venda["id"])
+        self.assertAlmostEqual(float(itens[0]["valor_unitario"]), 7.5)
+
+    def test_venda_aceita_valor_unitario_editado(self):
+        m = repo.abrir_caixa(self.conn, 0)
+        p = _seed_prod(self.conn, preco=7.5, estoque=10)
+        venda = repo.criar_venda(
+            self.conn, m["id"],
+            [{"id_produto": p["id"], "quantidade": 2, "valor_unitario": 5.0}],
+            [{"metodo": "pix", "valor": 10.0}])
+        self.assertAlmostEqual(venda["total"], 10.0)
+
     def test_venda_caixa_fechado_bloqueia(self):
         p = _seed_prod(self.conn)
         m = repo.abrir_caixa(self.conn, 0)

@@ -1,0 +1,1 @@
+"""Infraestrutura transversal do PDV (caminhos, etc.)."""

@@ -1,0 +1,39 @@
+PDV Lumina 2.1.0
+=================
+
+Frente de caixa, estoque e emissão fiscal NFC-e.
+
+O que acontece na primeira vez que você abre o sistema
+-----------------------------------------------------
+O PDV abre um assistente de configuração em 3 passos para você criar o
+usuário administrador (nome, login e senha). Não existe senha padrão:
+sem esse cadastro ninguém consegue entrar.
+
+Depois do primeiro acesso você pode:
+
+  * cadastrar produtos (tela Estoque);
+  * abrir o caixa com o valor inicial do dia (F4);
+  * preencher os dados da empresa e o provedor fiscal
+    (tela Configurações).
+
+Onde ficam os seus dados
+------------------------
+%LOCALAPPDATA%\PDV Lumina
+
+Seus dados (vendas, produtos, usuários) NÃO ficam na pasta do programa.
+Isso significa que atualizar ou desinstalar o PDV Lumina nunca apaga
+o que você cadastrou.
+
+Se precisar começar do zero, feche o sistema e apague essa pasta.
+
+Requisitos
+----------
+Windows 10 ou superior (64 bits). Precisa do Microsoft Edge, que já vem
+instalado no Windows — o PDV abre a tela usando ele.
+
+Se o antivírus avisar sobre o instalador
+---------------------------------------
+O PDV Lumina é um programa de caixa com banco de dados local. Alguns
+antivírus marcam qualquer programa empacotado assim como suspeito. Se
+acontecer, permita o executável "PDV Lumina.exe" e o desinstalador nas
+exceções do seu antivírus.

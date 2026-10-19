@@ -1,11 +1,23 @@
-# Runtime (app)
-PySide6>=6.7,<7
+# PDV Lumina — backend FastAPI + SQLite + frontend React (D:\pdv\frontend)
+# Instalação: .\.venv\Scripts\Activate.ps1; pip install -r requirements.txt
+
+# Backend web (obrigatório)
+fastapi>=0.110
+uvicorn>=0.29
+pydantic>=2.0
 requests>=2.31
 
-# Impressão térmica no Windows
+# Relatórios: gráficos + PDF
+matplotlib>=3.8          # gráficos (PNG) do relatório — backend Agg, sem janela
+reportlab>=4.0           # PDF do relatório (tabelas, cabeçalho, imagens)
+
+# Impressão térmica no Windows (usa win32print / RAW — sem escpos)
 pywin32>=306; sys_platform == "win32"
-python-escpos>=3.0; sys_platform == "win32"
+# QR Code do comprovante (nota não fiscal) — use qrcode OU segno
+qrcode>=7.4            # pip install qrcode
+
+# Legado desktop PySide6 (opcional — UI antiga em src/ui/, mantida p/ referência)
+# PySide6>=6.7,<7
 
 # Build / instalador (só na máquina de build, não no cliente)
-# PyInstaller e Inno Setup são usados para gerar o .exe único.
 PyInstaller>=6.0

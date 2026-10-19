@@ -47,13 +47,18 @@ class TestM1M2(unittest.TestCase):
         pid = repo.criar_perfil(self.conn, "P", "21050010", "5102", "102", "0")
         p = repo.criar_produto(self.conn, "Picole Chocolate", 5.50, 10, pid)
         self.assertRegex(p["codigo_interno"], r"^\d{4}$")
-        self.assertEqual(p["ean"], "SEM GTIN")
+        # código opcional: omitido gera EAN aleatório único (8 dígitos, sem conflito)
+        self.assertRegex(p["ean"], r"^\d{8}$")
+        p2 = repo.criar_produto(self.conn, "Picole Menta", 5.50, 10, pid, ean="")
+        self.assertRegex(p2["ean"], r"^\d{8}$")
+        self.assertNotEqual(p["ean"], p2["ean"])
         # busca por nome e por código (autocomplete M4)
         self.assertEqual(len(repo.buscar_para_pdv(self.conn, "Chocolate")), 1)
         self.assertEqual(len(repo.buscar_para_pdv(self.conn, p["codigo_interno"])), 1)
         # desconto 10% de 5.50 -> 4.95
         self.assertAlmostEqual(repo.aplicar_desconto(self.conn, p["id"], 10), 4.95)
         repo.excluir_produto(self.conn, p["id"])
+        repo.excluir_produto(self.conn, p2["id"])
         self.assertEqual(repo.listar_produtos(self.conn), [])
 
     def test_config(self):

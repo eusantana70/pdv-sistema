@@ -1,0 +1,12 @@
+{
+  "name": "mock-sefaz-nfce",
+  "version": "1.0.0",
+  "description": "Mock local SEFAZ NFC-e/NF-e para testes do PDV",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
