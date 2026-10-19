@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile
+from pathlib import Path
 
 from .auth import exige
 from .deps import get_conn
@@ -56,6 +57,70 @@ def criar_produto(body: ProdutoIn, conn=Depends(get_conn)):
     except ValueError as e:
         raise HTTPException(400, str(e))
     return _front(p, conn)
+
+
+@router.post("/produtos/importar", dependencies=[Depends(exige("estoque_cadastro"))])
+def importar_produtos(arquivo: UploadFile = File(...), conn=Depends(get_conn)):
+    """Importa produtos a partir de CSV/TXT, XLSX, PDF ou DOCX.
+
+    Cada linha do arquivo deve conter: nome, sku, categoria, preco, estoque,
+    unidade, cor, validade (colunas opcionais exceto o nome).
+    """
+    from services.importacao import ler_arquivo, validar_e_normalizar
+    import tempfile
+
+    extensao = Path(arquivo.filename or "").suffix.lower()
+    if extensao not in (".csv", ".txt", ".tsv", ".xlsx", ".xls", ".pdf", ".docx", ".doc"):
+        raise HTTPException(400, f"Extensão não suportada: {extensao}. Use .csv, .txt, .xlsx, .pdf ou .docx")
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=extensao)
+    try:
+        conteudo = arquivo.file.read()
+        tmp.write(conteudo)
+        tmp.close()
+
+        try:
+            linhas = ler_arquivo(tmp.name)
+        except Exception as e:
+            raise HTTPException(400, f"Não foi possível ler o arquivo: {e}")
+
+        validos, erros = validar_e_normalizar(linhas)
+
+        repo = _repo()
+        importados: list[dict] = []
+        erros_importacao: list[dict] = []
+
+        for p in validos:
+            try:
+                criado = repo.criar_produto(
+                    conn,
+                    p["nome"],
+                    p["preco_venda"],
+                    p["quantidade_estoque"],
+                    p.get("id_perfil_fiscal"),
+                    p.get("sku") or None,
+                    p.get("unidade_medida") or "UN",
+                    p.get("categoria"),
+                    p.get("cor") or "green",
+                    p.get("validade") or "",
+                )
+                importados.append(_front(criado, conn))
+            except ValueError as e:
+                erros_importacao.append({"nome": p.get("nome", ""), "erro": str(e)})
+
+        return {
+            "total_enviado": len(linhas),
+            "importados": len(importados),
+            "produtos": importados,
+            "erros_validacao": erros,
+            "erros_importacao": erros_importacao,
+            "total_erros": len(erros) + len(erros_importacao),
+        }
+    finally:
+        try:
+            Path(tmp.name).unlink(missing_ok=True)
+        except Exception:
+            pass
 
 
 @router.put("/produtos/{produto_id}", dependencies=[Depends(exige("estoque_cadastro"))])

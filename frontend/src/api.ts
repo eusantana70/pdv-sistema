@@ -256,6 +256,11 @@ export const api = {
     req<{ periodo: string; total_geral: number; vendas: number }>(`/relatorios/${periodo}`),
   relatorioFull: (periodo: "diario" | "semanal" | "mensal") =>
     req<{ periodo: string; total_geral: number; vendas: number; dias: { dia: string; _geral: number; _vendas: number; dinheiro: number; credito: number; debito: number; pix: number }[] }>(`/relatorios/${periodo}`),
+  importarProdutos: (body: FormData) =>
+    req<{ total_enviado: number; importados: number; produtos: any[]; erros_validacao: any[]; erros_importacao: any[]; total_erros: number }>(`/produtos/importar`, {
+      method: "POST",
+      body: body as any,
+    }),
   dadosRelatorio: (p: { periodo: string; data?: string; inicio?: string; fim?: string; formas?: string[]; categorias?: string[]; produtos?: string[]; agrupar?: string }) => {
     const q = new URLSearchParams();
     q.set("periodo", p.periodo);

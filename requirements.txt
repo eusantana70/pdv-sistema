@@ -16,6 +16,12 @@ pywin32>=306; sys_platform == "win32"
 # QR Code do comprovante (nota não fiscal) — use qrcode OU segno
 qrcode>=7.4            # pip install qrcode
 
+# Importa��o de produtos: planilhas e arquivos texto/PDF/DOCX
+pandas>=2.0              # leitura de Excel/CSV
+openpyxl>=3.1            # leitura de arquivos Excel .xlsx/.xls
+pdfplumber>=0.10         # extração de texto de PDF
+python-docx>=1.1         # leitura de documentos Word .docx
+
 # Legado desktop PySide6 (opcional — UI antiga em src/ui/, mantida p/ referência)
 # PySide6>=6.7,<7
 

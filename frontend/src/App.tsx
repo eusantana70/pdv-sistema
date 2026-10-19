@@ -6,7 +6,7 @@ type Category = "Todos" | "Bebidas" | "Alimentos" | "Padaria" | "Higiene";
 type IconName =
   | "bag" | "box" | "settings" | "search" | "plus" | "minus" | "trash"
   | "pause" | "card" | "receipt" | "edit" | "close" | "chevron" | "check"
-  | "alert" | "printer" | "store" | "user" | "tag" | "chart" | "logout" | "lock" | "power";
+  | "alert" | "printer" | "store" | "user" | "tag" | "chart" | "logout" | "lock" | "power" | "upload";
 
 type Lote = { id: number; validade: string; quantidade: number };
 
@@ -283,6 +283,7 @@ function Icon({ name, size = 20, ...rest }: { name: IconName; size?: number } & 
     logout: <><path d="M10 17l5-5-5-5M15 12H3M15 4h5a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-5" /></>,
     lock: <><rect x="5" y="10" width="14" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /><circle cx="12" cy="15" r="1" /></>,
     power: <><path d="M12 3v9" /><path d="M6.6 6.6a8 8 0 1 0 10.8 0" /></>,
+    upload: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10h10M12 15l3-3m0 0l-3-3" /></>,
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...rest}>{paths[name]}</svg>;
 }
@@ -2708,6 +2709,45 @@ function ReportsPage({ dados, config, setConfig, onAplicar, onGerarPdf, loading,
 function InventoryPage({ products, onAdd, onEdit, onDelete, podeEditar }: { products: Product[]; podeEditar: boolean; onAdd: () => void; onEdit: (product: Product) => void; onDelete: (id: number) => void }) {
   const [query, setQuery] = useState("");
   const [showValidade, setShowValidade] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importando, setImportando] = useState(false);
+  const [importResultado, setImportResultado] = useState<{ total_enviado: number; importados: number; erros_validacao: any[]; erros_importacao: any[]; total_erros: number } | null>(null);
+
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) setImportFile(file);
+  };
+
+  const importarProdutos = async () => {
+    if (!importFile) return;
+    setImportando(true);
+    setImportResultado(null);
+    try {
+      const formData = new FormData();
+      formData.append("arquivo", importFile);
+      const resultado = await api.importarProdutos(formData);
+      setImportResultado(resultado);
+      if (resultado.importados > 0) {
+        // Recarregar produtos após importação
+        const produtosAtualizados = await api.listarProdutos("");
+        // Notificar via callback se disponível
+        if (typeof window.dispatchEvent === "function") {
+          window.dispatchEvent(new CustomEvent("produtos-atualizados", { detail: produtosAtualizados }));
+        }
+      }
+    } catch (err: any) {
+      setImportResultado({
+        total_enviado: 0,
+        importados: 0,
+        erros_validacao: [],
+        erros_importacao: [{ nome: "", erro: err.message || "Erro desconhecido" }],
+        total_erros: 1,
+      });
+    } finally {
+      setImportando(false);
+      setImportFile(null);
+    }
+  };
   const visible = products.filter((item) => `${item.name} ${item.sku}`.toLowerCase().includes(query.toLowerCase()));
   const lowStock = products.filter((item) => item.stock <= 8).length;
   const comValidade = products
@@ -2770,6 +2810,59 @@ function InventoryPage({ products, onAdd, onEdit, onDelete, podeEditar }: { prod
         <div className="metric"><div className="metric-icon amber"><Icon name="alert" /></div><div><span>Estoque baixo</span><strong>{lowStock}</strong><small>requerem atenção</small></div></div>
         <div className="metric"><div className="metric-icon green"><Icon name="tag" /></div><div><span>Valor em estoque</span><strong>{money(products.reduce((sum, p) => sum + p.price * p.stock, 0))}</strong><small>preço de venda</small></div></div>
       </div>
+
+      {/* Importação de produtos por planilha/arquivo */}
+      <section className="content-card">
+        <div className="table-toolbar">
+          <div><h2>Importar produtos</h2><p>Importe produtos a partir de planilhas (CSV, XLSX) ou arquivos de texto (TXT, PDF, DOCX). Cada linha deve conter: nome, preço, estoque, categoria, SKU, unidade, cor e validade.</p></div>
+        </div>
+        <div className="product-table">
+          <div className="table-row table-head"><span>Arquivo</span><span>Ação</span><span>Status</span></div>
+          <div className="table-row">
+            <div className="table-product">
+              <input type="file" accept=".csv,.txt,.tsv,.xlsx,.xls,.pdf,.docx" onChange={handleImportFile} />
+              {importFile?.name || "Nenhum arquivo selecionado"}
+            </div>
+            <div className="table-product">
+              {importando ? (
+                <AppButton variant="primary" onClick={importarProdutos} disabled={importando}>Importando…</AppButton>
+              ) : (
+                <AppButton variant="primary" onClick={importarProdutos} disabled={!importFile}>Importar arquivo</AppButton>
+              )}
+            </div>
+            <div className="table-product">
+              {importResultado ? (
+                importResultado.total_erros === 0 ? (
+                  <span style={{ color: "#2c7a4b", fontWeight: 700 }}>{importResultado.importados} importado(s) com sucesso</span>
+                ) : (
+                  <span style={{ color: "#a64f4f", fontWeight: 700 }}>{importResultado.importados} importado(s), {importResultado.total_erros} erro(s)</span>
+                )
+              ) : null}
+            </div>
+          </div>
+          {importResultado && importResultado.erros_validacao.length > 0 && (
+            <div className="search-no-result" style={{ marginTop: 10 }}>
+              <strong>Erros de validação:</strong>
+              <ul style={{ marginTop: 5, marginLeft: 20, color: "#a64f4f", fontSize: 12 }}>
+                {importResultado.erros_validacao.map((e: any, i: number) => (
+                  <li key={i}>{e.nome}: {e.erros.join(", ")}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {importResultado && importResultado.erros_importacao.length > 0 && (
+            <div className="search-no-result" style={{ marginTop: 10 }}>
+              <strong>Erros ao importar:</strong>
+              <ul style={{ marginTop: 5, marginLeft: 20, color: "#a64f4f", fontSize: 12 }}>
+                {importResultado.erros_importacao.map((e: any, i: number) => (
+                  <li key={i}>{e.nome}: {e.erro}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      </section>
+
       <section className="content-card">
         <div className="table-toolbar">
           <div><h2>Produtos</h2><p>Cadastre, edite e acompanhe o saldo disponível.</p></div>
